@@ -5,87 +5,110 @@ const validarEntradaDeDados = (lancamento) => {
     return "Valor não pode ser inferior a -2000,00, digite um valor válido";
   if (lancamento.valor > 15000.0)
     return "Valor não pode ser superior a 15000,00, digite um valor válido";
-  if (lancamento.cpf.length != 11) return "CPF deve conter 11 dígitos";
-  if (!lancamento.cpf.match(/^[0-9]+$/))
-    return "CPF deve conter apenas números";
+  if (!validaCPF(lancamento.cpf)) return "CPF inválido, digite um CPF válido";
   return null;
 };
 
 const recuperarSaldosPorConta = (lancamentos) => {
-  const saldos = {};
-  for (const lancamento of lancamentos) {
-    if (lancamento.cpf && lancamento.valor) {
-      if (!saldos[lancamento.cpf]) {
-        saldos[lancamento.cpf] = lancamento.valor;
-      } else {
-        saldos[lancamento.cpf] += lancamento.valor;
-      }
-    }
+  var lancamentosPorCPF = [];
+  var ListaCPF = new Set(lancamentos.map((lancamento) => lancamento.cpf));
+  for (let cpf of ListaCPF) {
+    const lancamentoPorCPF = recuperarSaldosPorCpf(lancamentos, cpf);
+    lancamentosPorCPF.push(lancamentoPorCPF);
   }
-  return Object.entries(saldos).map(([cpf, valor]) => ({ cpf, valor }));
+  return lancamentosPorCPF;
 };
 
 const recuperarMaiorMenorLancamentos = (cpf, lancamentos) => {
-  const lancamentosCpf = lancamentos.filter(
-    (lancamento) => lancamento.cpf === cpf
-  );
+  let CPFlancamentos = [];
+  for (let i = 0; i < lancamentos.length; i++) {
+    if (lancamentos[i].cpf == cpf) {
+      CPFlancamentos.push(lancamentos[i]);
+    }
+  }
 
-  if (lancamentosCpf.length === 0) {
+  if (CPFlancamentos.length == 0) {
     return [];
-  } else if (lancamentosCpf.length === 1) {
+  } else if (CPFlancamentos.length == 1) {
     return [
-      { cpf: lancamentosCpf[0].cpf, valor: lancamentosCpf[0].valor },
-      { cpf: lancamentosCpf[0].cpf, valor: lancamentosCpf[0].valor },
+      { cpf: CPFlancamentos[0].cpf, valor: CPFlancamentos[0].valor },
+      { cpf: CPFlancamentos[0].cpf, valor: CPFlancamentos[0].valor },
     ];
   } else {
-    lancamentosCpf.sort((a, b) => a.valor - b.valor);
+    CPFlancamentos.sort(
+      (lancamentoInicial, lancamentoFinal) =>
+        lancamentoInicial.valor - lancamentoFinal.valor
+    );
     return [
-      { cpf: cpf, valor: lancamentosCpf[0].valor },
-      { cpf: cpf, valor: lancamentosCpf[lancamentosCpf.length - 1].valor },
+      { cpf: cpf, valor: CPFlancamentos[0].valor },
+      { cpf: cpf, valor: CPFlancamentos[CPFlancamentos.length - 1].valor },
     ];
   }
 };
 
 const recuperarMaioresSaldos = (lancamentos) => {
-  const saldos = {};
-  for (const lancamento of lancamentos) {
-    if (lancamento.cpf && lancamento.valor) {
-      if (!saldos[lancamento.cpf]) {
-        saldos[lancamento.cpf] = lancamento.valor;
-      } else {
-        saldos[lancamento.cpf] += lancamento.valor;
-      }
-    }
-  }
-  const topCPFs = Object.keys(saldos)
-    .map((cpf) => ({ cpf, valor: saldos[cpf] }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 3);
-  return topCPFs;
+  let top3CPF = recuperarSaldosPorConta(lancamentos);
+  top3CPF.sort(
+    (lancamentoInicial, lancamentoFinal) =>
+      lancamentoFinal.valor - lancamentoInicial.valor
+  );
+  top3CPF = top3CPF.slice(0, 3);
+  return top3CPF;
 };
 
 const recuperarMaioresMedias = (lancamentos) => {
-  const saldos = {};
-
-  for (const lancamento of lancamentos) {
-    const cpf = lancamento.cpf;
-    const valor = lancamento.valor;
-
-    if (!saldos[cpf]) {
-      saldos[cpf] = {
-        saldo: 0,
-        contador: 0,
-      };
-    }
-
-    saldos[cpf].saldo += valor;
-    saldos[cpf].contador++;
+  var lancamentosCPFMedia = [];
+  var ListaCPF = new Set(lancamentos.map((lancamento) => lancamento.cpf));
+  for (let cpf of ListaCPF) {
+    let conta = recuperarSaldosPorCpf(lancamentos, cpf);
+    let quantCPFs = lancamentos.filter(
+      (lancamentoPorCpf) => lancamentoPorCpf.cpf == cpf
+    ).length;
+    lancamentosCPFMedia.push({
+      cpf: cpf,
+      valor: conta.valor / quantCPFs,
+    });
   }
-
-  const saldosMedios = Object.keys(saldos).map((cpf) => ({
-    cpf,
-    valor: saldos[cpf].saldo / saldos[cpf].contador,
-  }));
-  saldosMedios.sort((a, b) => b.valor - a.valor);
-  return saldosMedios.slice(0, 3);
+  lancamentosCPFMedia = lancamentosCPFMedia.sort(
+    (lancamentoInicial, lancamentoFinal) =>
+      lancamentoFinal.valor - lancamentoInicial.valor
+  );
+  return lancamentosCPFMedia.slice(0, 3);
 };
+
+const recuperarSaldosPorCpf = (lancamentos, cpf) => {
+  let lancamentosCPF = lancamentos.filter(
+    (lancamentoPorCpf) => lancamentoPorCpf.cpf == cpf
+  );
+  let valor = 0;
+  for (let lancamentoCpf of lancamentosCPF) {
+    valor += lancamentoCpf.valor;
+  }
+  return { cpf: cpf, valor: valor };
+};
+
+function validaCPF(cpf) {
+  var Soma = 0;
+  var Resto;
+  var strCPF = String(cpf).replace(/[^\d]/g, "");
+
+  if (strCPF.length !== 11) return false;
+  if (strCPF.split("").every((cpf) => cpf === strCPF[0])) return false;
+
+  for (i = 1; i <= 9; i++)
+    Soma = Soma + parseInt(strCPF.substring(i - 1, i)) * (11 - i);
+  Resto = (Soma * 10) % 11;
+
+  if (Resto == 10 || Resto == 11) Resto = 0;
+  if (Resto != parseInt(strCPF.substring(9, 10))) return false;
+
+  Soma = 0;
+  for (i = 1; i <= 10; i++)
+    Soma = Soma + parseInt(strCPF.substring(i - 1, i)) * (12 - i);
+  Resto = (Soma * 10) % 11;
+
+  if (Resto == 10 || Resto == 11) Resto = 0;
+  if (Resto != parseInt(strCPF.substring(10, 11))) return false;
+
+  return true;
+}
